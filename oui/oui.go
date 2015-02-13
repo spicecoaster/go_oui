@@ -17,7 +17,6 @@ const (
 
 type ouiEntry struct {
 	macPrefix    string
-	hexString    string
 	manufacturer string
 	address      [4]string
 }
@@ -42,16 +41,29 @@ func getOUIFile(ouiURL string) string {
 	return ""
 }
 
+func processOUIData(oui string) (list ouiList) {
+	var oui_lines []string
+	var oui_list ouiList
+
+	oui_lines = strings.Split(oui, "\n")
+	fmt.Printf("OUI Array Length: %d\n", len(oui_lines))
+	re := regexp.MustCompile("(hex)")
+	i := 0
+	for _, e := range oui_lines {
+		if re.FindString(e) != "" {
+			fmt.Printf("%q\n", e)
+			oui_parts := strings.Split(e, "\t")
+			oui_entry := ouiEntry{macPrefix: strings.Trim(oui_parts[0], " "), manufacturer: oui_parts[3]}
+			fmt.Println(oui_entry)
+			oui_list[i] = oui_entry
+			i++
+		}
+	}
+	return oui_list
+}
+
 func main() {
 	oui_text := getOUIFile(MA_M_OUI_URL)
 	fmt.Print(oui_text)
-	var oui_lines []string
-	oui_lines = strings.Split(oui_text, "\n")
-	fmt.Printf("OUI Array Length: %d\n", len(oui_lines))
-	re := regexp.MustCompile("(hex)")
-	for _, e := range oui_lines {
-		if re.FindString(e) != "" {
-			fmt.Printf("%s\n", e)
-		}
-	}
+	processOUIData(oui_text)
 }
