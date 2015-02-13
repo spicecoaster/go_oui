@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	MAX_OUI_ENTRIES = 1000
+	MAX_OUI_ENTRIES = 100000
 	MA_L_OUI_URL    = "http://standards-oui.ieee.org/oui.txt"
 	MA_M_OUI_URL    = "http://standards.ieee.org/develop/regauth/oui28/mam.txt"
 	MA_S_OUI_URL    = "http://standards.ieee.org/develop/regauth/iab/iab.txt"
+	LOCAL_OUI_DB    = "oui_db.txt"
 )
 
 type ouiEntry struct {
@@ -21,49 +22,60 @@ type ouiEntry struct {
 	address      [4]string
 }
 
-type ouiList [MAX_OUI_ENTRIES]ouiEntry
-
-func GetMAMOUI() {
-}
-
-func getOUIFile(ouiURL string) string {
+func getOUIFromIEEEOrg(ouiURL string) (string, error) {
 	resp, err := http.Get(ouiURL)
 	if err != nil {
 		fmt.Print(err)
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Print(err)
+		return "", err
 	} else {
-		return string(body)
+		return string(body), nil
 	}
-	return ""
+	return "", nil
 }
 
-func processOUIData(oui string) (list ouiList) {
+func getOUIFromLocalDB(ouiPath string) (string, error) {
+	oui_data, err := ioutil.ReadFile(ouiPath)
+	if err != nil {
+		fmt.Print(err)
+		return "", err
+	}
+	return string(oui_data), nil
+}
+
+func processOUIData(oui string) map[string]string {
 	var oui_lines []string
-	var oui_list ouiList
+	oui_list := make(map[string]string)
 
 	oui_lines = strings.Split(oui, "\n")
-	fmt.Printf("OUI Array Length: %d\n", len(oui_lines))
+	//fmt.Printf("OUI Array Length: %d\n", len(oui_lines))
 	re := regexp.MustCompile("(hex)")
-	i := 0
 	for _, e := range oui_lines {
 		if re.FindString(e) != "" {
-			fmt.Printf("%q\n", e)
+			//fmt.Printf("%q\n", e)
 			oui_parts := strings.Split(e, "\t")
-			oui_entry := ouiEntry{macPrefix: strings.Trim(oui_parts[0], " "), manufacturer: oui_parts[3]}
-			fmt.Println(oui_entry)
-			oui_list[i] = oui_entry
-			i++
+			fmt.Printf("%s | %s | %s\n", oui_parts[0], oui_parts[1], oui_parts[2])
+			//oui_entry := ouiEntry{macPrefix: strings.Trim(oui_parts[0], " "), manufacturer: oui_parts[3]}
+			oui_list[strings.Trim(oui_parts[0], " ")] = oui_parts[2]
 		}
 	}
 	return oui_list
 }
 
 func main() {
-	oui_text := getOUIFile(MA_M_OUI_URL)
-	fmt.Print(oui_text)
-	processOUIData(oui_text)
+	oui_text, err := getOUIFromIEEEOrg(MA_L_OUI_URL)
+	if err != nil {
+		fmt.Print(err)
+		oui_text, err = getOUIFromLocalDB(LOCAL_OUI_DB)
+	}
+	//fmt.Print(oui_text)
+	m := processOUIData(oui_text)
+	for key, value := range m {
+		fmt.Println("Key:", key, "Value:", value)
+	}
 }
